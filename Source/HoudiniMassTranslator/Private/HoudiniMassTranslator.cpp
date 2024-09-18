@@ -6,6 +6,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "ZoneGraphDelegates.h"
 
+#include "Settings/ProjectPackagingSettings.h"
+
 #include "HoudiniEngine.h"
 #include "HoudiniInputZoneShape.h"
 #include "HoudiniOutputZoneShape.h"
@@ -53,6 +55,15 @@ void FHoudiniMassTranslator::StartupModule()
 
 	UE::ZoneGraphDelegates::OnZoneGraphDataBuildDone.AddRaw(this, &FHoudiniMassTranslator::OnZoneGraphBuildDone);
 	FEditorDelegates::BeginPIE.AddRaw(this, &FHoudiniMassTranslator::OnZoneGraphBuildCancel);
+
+	// We need to ignore this plugin's content while unreal cooking
+	UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+	if (!PackagingSettings->DirectoriesToNeverCook.ContainsByPredicate(
+		[](const FDirectoryPath& Directory) { return Directory.Path == TEXT("/HoudiniMassTranslator/Example"); }))
+	{
+		PackagingSettings->DirectoriesToNeverCook.Add({ TEXT("/HoudiniMassTranslator/Example") });
+		PackagingSettings->TryUpdateDefaultConfigFile();
+	}
 }
 
 void FHoudiniMassTranslator::OnZoneShapeOutputFinish()

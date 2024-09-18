@@ -42,7 +42,8 @@ public class HoudiniMassTranslator : ModuleRules
 				"HoudiniEngine",
 				"ZoneGraph",
                 "ToolMenus",
-                "UnrealEd"
+                "UnrealEd",
+                "DeveloperToolSettings",
             }
 			);
 		
