@@ -6,7 +6,7 @@ This plug-in provides seamless integration between Houdini Engine and Zone Graph
 
 # Compatibility
 
-This plug-in is reply on my custom [HoudiniEngineForUnreal](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal), so same compatibility as Houdini Engine.
+This plug-in is reply on **my custom** [HoudiniEngineForUnreal](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal), so same compatibility as the Houdini Engine.
 
 # Installation
 01. In this GitHub [repository](https://github.com/AdrianPanGithub/HoudiniMassTranslator), click **Releases** on the right side. 
@@ -20,7 +20,7 @@ This plug-in is reply on my custom [HoudiniEngineForUnreal](https://github.com/A
 01. Download the **CitySample** demo for Unreal Engine 5.4 or later from Epic Store.
 02. Put these two plug-ins into **CitySample/Plugins folder**.
 
-03. Open `/HoudiniMassTranslator/HoudiniTrafficDemo` in the content of this plug-in, and simulate.
+03. Open `/HoudiniMassTranslator/Example/HoudiniTrafficDemo` in the content of this plug-in, and simulate.
 
 # Usage Brief
 
