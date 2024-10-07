@@ -3,6 +3,7 @@
 Welcome to the [repository](https://github.com/AdrianPanGithub/HoudiniMassTranslator) for the Houdini Mass Translator For Unreal.
 
 This plug-in provides seamless integration between Houdini Engine and Zone Graph, allow zone shape input and output.
+Also see [Tutorial](https://youtu.be/HAM8_OP_Fyc?si=K_1HXkTBwF1rLYVB)
 
 # Compatibility
 
@@ -15,8 +16,8 @@ This plug-in is reply on **my custom** [HoudiniEngineForUnreal](https://github.c
 
     e.g. `C:/Unreal Projects/MyGameProject/Plugins/HoudiniMassTranslator` and `C:/Unreal Projects/MyGameProject/Plugins/HoudiniEngine`
 
-# Example
-
+# Tutorial/Example
+[Tutorial](https://youtu.be/HAM8_OP_Fyc?si=K_1HXkTBwF1rLYVB) of how to use this plugin
 01. Download the **CitySample** demo for Unreal Engine 5.4 or later from Epic Store.
 02. Put these two plug-ins into **CitySample/Plugins folder**.
 
