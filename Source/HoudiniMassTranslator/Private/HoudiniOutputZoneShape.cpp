@@ -46,21 +46,12 @@ bool FHoudiniZoneShapeOutputBuilder::HapiIsPartValid(const int32& NodeId, const 
 
 UZoneShapeComponent* FHoudiniZoneShapeOutput::Find(const AHoudiniNode* Node) const
 {
-	if (Component.IsValid())
-		return Component.Get();
-
-	AActor* FoundSplitActor = nullptr;
-	UZoneShapeComponent* FoundComp = Cast<UZoneShapeComponent>(FindComponent(Node, FoundSplitActor, false));
-	Component = FoundComp;
-	return FoundComp;
+	return Find_Internal<false>(Component, Node);
 }
 
 UZoneShapeComponent* FHoudiniZoneShapeOutput::CreateOrUpdate(AHoudiniNode* Node, const FString& InSplitValue, const bool& bInSplitActor)
 {
-	USceneComponent* HCC = Component.IsValid() ? Component.Get() : nullptr;
-	CreateOrUpdateComponent(Node, HCC, UZoneShapeComponent::StaticClass(), InSplitValue, bInSplitActor, false);
-	Component = (UZoneShapeComponent*)HCC;
-	return (UZoneShapeComponent*)HCC;
+	return CreateOrUpdate_Internal<false>(Component, Node, InSplitValue, bInSplitActor);
 }
 
 void FHoudiniZoneShapeOutput::Destroy(const AHoudiniNode* Node) const
