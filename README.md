@@ -23,6 +23,8 @@ This plug-in is reply on **my custom** [HoudiniEngineForUnreal](https://github.c
 
 03. Open `/HoudiniMassTranslator/Example/HoudiniTrafficDemo` in the content of this plug-in, and simulate.
 
+Also see what can be achieved by Only using your HDAs and these two unreal plugins: [City toolchains](https://youtu.be/5Vp5nAFq1X8?si=IGSDG4cUdsefwn5x)
+
 # Usage Brief
 
 Support both input and output of mass ai zone shapes

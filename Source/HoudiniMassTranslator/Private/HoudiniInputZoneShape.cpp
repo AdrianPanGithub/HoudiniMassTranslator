@@ -68,14 +68,11 @@ bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, co
 	}
 
 	int32& NodeId = ZSCInput->NodeId;
-	if (NodeId < 0)
-	{
+	const bool bCreateNewNode = (NodeId < 0);
+	if (bCreateNewNode)
 		HAPI_SESSION_FAIL_RETURN(FHoudiniApi::CreateNode(FHoudiniEngine::Get().GetSession(), Input->GetGeoNodeId(), "null",
 			TCHAR_TO_UTF8(*FString::Printf(TEXT("%s_zone_shape_%08X"), *(Components[ComponentIndices[0]]->GetOuter()->GetName()), FPlatformTime::Cycles())),
 			false, &NodeId));
-
-		HOUDINI_FAIL_RETURN(Input->HapiConnectToMergeNode(NodeId));
-	}
 
 	HAPI_PartInfo PartInfo;
 	FHoudiniApi::PartInfo_Init(&PartInfo);
@@ -289,9 +286,10 @@ bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, co
 	if (bHasSpline)
 		HOUDINI_FAIL_RETURN(HapiSetLaneProfileLambda(PartInfo.faceCount, HAPI_ATTROWNER_PRIM, SplineLaneProfileNames, SplineLanes, SplineLaneCounts));
 
-	// TODO:
-
 	HAPI_SESSION_FAIL_RETURN(FHoudiniApi::CommitGeo(FHoudiniEngine::Get().GetSession(), NodeId));
+	
+	if (bCreateNewNode)
+		HOUDINI_FAIL_RETURN(Input->HapiConnectToMergeNode(NodeId));
 
 	return true;
 }
