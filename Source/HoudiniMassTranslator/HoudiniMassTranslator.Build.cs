@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright (c) <2025> Yuzhe Pan (childadrianpan@gmail.com). All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -10,14 +10,14 @@ public class HoudiniMassTranslator : ModuleRules
 		
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ... add public include paths required here ...
+
 			}
 			);
 				
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
+				
 			}
 			);
 			
@@ -26,7 +26,6 @@ public class HoudiniMassTranslator : ModuleRules
 			new string[]
 			{
 				"Core",
-				// ... add other public dependencies that you statically link with here ...
 			}
 			);
 			
