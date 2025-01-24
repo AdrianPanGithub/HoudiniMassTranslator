@@ -62,8 +62,6 @@ void FHoudiniZoneShapeOutput::Destroy(const AHoudiniNode* Node) const
 
 namespace HoudiniZoneShapeOutputUtils
 {
-	static int32 GetCurveAttributeElemIdx(const HAPI_AttributeOwner& AttribOwner, const int32& VtxIdx, const int32& CurveIdx);
-
 	static FZoneGraphTagMask FindOrCreateZoneGraphTag(UZoneGraphSettings* ZoneGraphSettings, const FName& TagName, bool& bZoneGraphSettingsModified);
 
 	static bool HapiGetOrCreateTags(const int32& NodeId, const int32& PartId, UZoneGraphSettings* ZoneGraphSettings,
@@ -82,19 +80,6 @@ namespace HoudiniZoneShapeOutputUtils
 	static bool HapiGetOrCreateLaneProfiles(const int32& NodeId, const int32& PartId, const TArray<std::string>& AttribNames, const int AttribCounts[HAPI_ATTROWNER_MAX],
 		UZoneGraphSettings* ZoneGraphSettings, const bool bIsOnPoints,
 		HAPI_AttributeOwner& OutLaneProfileOwner, TMap<uint32, int32>& InOutHashProfileIdxMap, TArray<int32>& OutLaneProfileIndices, bool& bZoneGraphSettingsModified);
-}
-
-int32 HoudiniZoneShapeOutputUtils::GetCurveAttributeElemIdx(const HAPI_AttributeOwner& AttribOwner, const int32& VtxIdx, const int32& CurveIdx)
-{
-	switch (AttribOwner)
-	{
-	case HAPI_ATTROWNER_VERTEX:
-	case HAPI_ATTROWNER_POINT: return VtxIdx;
-	case HAPI_ATTROWNER_PRIM: return CurveIdx;
-	case HAPI_ATTROWNER_DETAIL: return 0;
-	}
-
-	return -1;
 }
 
 FZoneGraphTagMask HoudiniZoneShapeOutputUtils::FindOrCreateZoneGraphTag(UZoneGraphSettings* ZoneGraphSettings, const FName& TagName, bool& bZoneGraphSettingsModified)
@@ -489,11 +474,11 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 			// Same as HoudiniOutputMesh
 			// Judge PartialOutputMode, if remove && previous NOT set, then we will NOT parse the GroupIdx
 			const int32 SplitKey = bHasSplitValues ?
-				SplitKeys[GetCurveAttributeElemIdx(SplitAttribOwner, VertexIdx, CurveIdx)] : 0;
+				SplitKeys[FHoudiniOutputUtils::CurveAttributeEntryIdx(SplitAttribOwner, VertexIdx, CurveIdx)] : 0;
 			FHoudiniCurveIndicesHolder* FoundHolderPtr = bHasSplitValues ? SplitMap.Find(SplitKey) : nullptr;
 
 			const int8 PartialOutputMode = FMath::Clamp(PartialOutputModes.IsEmpty() ? HAPI_PARTIAL_OUTPUT_MODE_REPLACE :
-				PartialOutputModes[GetCurveAttributeElemIdx(PartialOutputModeOwner, VertexIdx, CurveIdx)],
+				PartialOutputModes[FHoudiniOutputUtils::CurveAttributeEntryIdx(PartialOutputModeOwner, VertexIdx, CurveIdx)],
 				HAPI_PARTIAL_OUTPUT_MODE_REPLACE, HAPI_PARTIAL_OUTPUT_MODE_REMOVE);
 
 			if (PartialOutputMode == HAPI_PARTIAL_OUTPUT_MODE_MODIFY)
@@ -675,7 +660,7 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 
 				bool bSplitActor = false;
 				if (!bSplitActors.IsEmpty())
-					bSplitActor = bSplitActors[GetCurveAttributeElemIdx(SplitActorsOwner, MainVertexIdx, CurveIdx)] >= 1;
+					bSplitActor = bSplitActors[FHoudiniOutputUtils::CurveAttributeEntryIdx(SplitActorsOwner, MainVertexIdx, CurveIdx)] >= 1;
 
 				FHoudiniZoneShapeOutput NewZSOutput;
 				if (FHoudiniZoneShapeOutput* FoundZSOutput = FHoudiniOutputUtils::FindOutputHolder(OldZoneShapeOutputs,
@@ -686,14 +671,14 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 
 				// We should judge ZoneShapeType first, if is Polygon, then points should have LaneProfile
 				if (!ZoneShapeTypes.IsEmpty())
-					ZSC->SetShapeType((FZoneShapeType)ZoneShapeTypes[GetCurveAttributeElemIdx(ZoneShapeTypeOwner, MainVertexIdx, CurveIdx)]);
+					ZSC->SetShapeType((FZoneShapeType)ZoneShapeTypes[FHoudiniOutputUtils::CurveAttributeEntryIdx(ZoneShapeTypeOwner, MainVertexIdx, CurveIdx)]);
 
 				if (!ZoneGraphTags.IsEmpty())
-					ZSC->SetTags(ZoneGraphTags[GetCurveAttributeElemIdx(ZoneShapeTypeOwner, MainVertexIdx, CurveIdx)]);
+					ZSC->SetTags(ZoneGraphTags[FHoudiniOutputUtils::CurveAttributeEntryIdx(ZoneShapeTypeOwner, MainVertexIdx, CurveIdx)]);
 
 				if (!LaneProfileIndices.IsEmpty())
 				{
-					const int32 LaneProfileIdx = LaneProfileIndices[GetCurveAttributeElemIdx(LaneProfileOwner, MainVertexIdx, CurveIdx)];
+					const int32 LaneProfileIdx = LaneProfileIndices[FHoudiniOutputUtils::CurveAttributeEntryIdx(LaneProfileOwner, MainVertexIdx, CurveIdx)];
 					if (ZoneGraphSettings->GetLaneProfiles().IsValidIndex(LaneProfileIdx))
 						ZSC->SetCommonLaneProfile(ZoneGraphSettings->GetLaneProfiles()[LaneProfileIdx]);
 				}
@@ -713,7 +698,7 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 					const int32 GlobalPointIdx = PointIdx + StartVertexIdx;
 					Point.Position = FVector(PositionData[GlobalPointIdx * 3], PositionData[GlobalPointIdx * 3 + 2], PositionData[GlobalPointIdx * 3 + 1]) * POSITION_SCALE_TO_UNREAL;
 					if (!Rots.IsEmpty())
-						Point.Rotation = Rots[GetCurveAttributeElemIdx(RotOwner, GlobalPointIdx, CurveIdx)];
+						Point.Rotation = Rots[FHoudiniOutputUtils::CurveAttributeEntryIdx(RotOwner, GlobalPointIdx, CurveIdx)];
 
 					Point.LaneProfile = FZoneShapePoint::InheritLaneProfile;
 					if (!PointLaneProfileIndices.IsEmpty() && ZSC->GetShapeType() == FZoneShapeType::Polygon)
@@ -727,9 +712,9 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 					for (const TSharedPtr<FHoudiniAttribute>& PropAttrib : PropAttribs)
 					{
 						const HAPI_AttributeOwner& PropAttribOwner = PropAttrib->GetOwner();
-						if (PropAttribOwner == HAPI_ATTROWNER_VERTEX || PropAttribOwner == HAPI_ATTROWNER_POINT)
+						if ((PropAttribOwner == HAPI_ATTROWNER_VERTEX) || (PropAttribOwner == HAPI_ATTROWNER_POINT))
 							PropAttrib->SetStructPropertyValues(&Point, FZoneShapePoint::StaticStruct(),
-								GetCurveAttributeElemIdx(PropAttribOwner, GlobalPointIdx, CurveIdx));
+								FHoudiniOutputUtils::CurveAttributeEntryIdx(PropAttribOwner, GlobalPointIdx, CurveIdx));
 					}
 				}
 
@@ -737,10 +722,10 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 				for (const TSharedPtr<FHoudiniAttribute>& PropAttrib : PropAttribs)
 				{
 					const HAPI_AttributeOwner& PropAttribOwner = PropAttrib->GetOwner();
-					if (PropAttribOwner == HAPI_ATTROWNER_PRIM || PropAttribOwner == HAPI_ATTROWNER_DETAIL)
-					PropAttrib->SetObjectPropertyValues(ZSC, GetCurveAttributeElemIdx(PropAttribOwner, MainVertexIdx, CurveIdx));
+					if ((PropAttribOwner == HAPI_ATTROWNER_PRIM) || (PropAttribOwner == HAPI_ATTROWNER_DETAIL))
+						PropAttrib->SetObjectPropertyValues(ZSC, FHoudiniOutputUtils::CurveAttributeEntryIdx(PropAttribOwner, MainVertexIdx, CurveIdx));
 				}
-				SET_SPLIT_ACTOR_UPROPERTIES(NewZSOutput, GetCurveAttributeElemIdx(PropAttribOwner, MainVertexIdx, CurveIdx), false);
+				SET_SPLIT_ACTOR_UPROPERTIES(NewZSOutput, FHoudiniOutputUtils::CurveAttributeEntryIdx(PropAttribOwner, MainVertexIdx, CurveIdx), false);
 				
 				// Avoid Crash when ZSC create scene proxy
 				if (ShapeConnectorsProp && ConnectedShapesProp)

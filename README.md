@@ -7,23 +7,23 @@ Also see [Tutorial](https://youtu.be/HAM8_OP_Fyc?si=K_1HXkTBwF1rLYVB)
 
 # Compatibility
 
-This plug-in is reply on **my custom** [HoudiniEngineForUnreal](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal), so same compatibility as the Houdini Engine.
+This plug-in is reply on **my custom** [HoudiniEngineForUnreal](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal), so same [compatibility](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal#compatibility) as the Houdini Engine. (Examples only run with >= 5.4)
 
 # Installation
-01. In this GitHub [repository](https://github.com/AdrianPanGithub/HoudiniMassTranslator), click **Releases** on the right side. 
+01. In this GitHub [repository](https://github.com/AdrianPanGithub/HoudiniMassTranslator), click [Releases](https://github.com/AdrianPanGithub/HoudiniMassTranslator/releases) on the right side. 
 02. Download the Houdini Mass Transaltor zip file that matches your Unreal Engine Version.  
 03. Extract the **HoudiniMassTranslator** and **HoudiniEngine** to the **Plugins** of your Unreal Project Directory.
 
     e.g. `C:/Unreal Projects/MyGameProject/Plugins/HoudiniMassTranslator` and `C:/Unreal Projects/MyGameProject/Plugins/HoudiniEngine`
 
 # Tutorial/Example
-[Tutorial](https://youtu.be/HAM8_OP_Fyc?si=K_1HXkTBwF1rLYVB) of how to use this plugin
-01. Download the **CitySample** demo for Unreal Engine 5.4 or later from Epic Store.
+[Tutorial](https://youtu.be/HAM8_OP_Fyc?si=K_1HXkTBwF1rLYVB) Require Unreal Engine >= 5.4 to run the example:
+01. Download the [CitySample](https://www.fab.com/listings/4898e707-7855-404b-af0e-a505ee690e68) project (Unreal Engine >= 5.4) from Fab Store.
 02. Put these two plug-ins into **CitySample/Plugins folder**.
 
 03. Open `/HoudiniMassTranslator/Example/HoudiniTrafficDemo` in the content of this plug-in, and simulate.
 
-Also see what can be achieved by Only using your HDAs and these two unreal plugins: [City toolchains](https://youtu.be/5Vp5nAFq1X8?si=IGSDG4cUdsefwn5x)
+Also see what can be achieved by Only using your HDAs and these two unreal plugins: [City Toolchains](https://youtu.be/5Vp5nAFq1X8?si=IGSDG4cUdsefwn5x)
 
 # Usage Brief
 
@@ -46,3 +46,6 @@ d[]@**unreal_zone_lane_profile**
 s@**unreal_zone_lane_profile_name**
 
     Will find lane profiles based on this attribute, could be both on point and prim.
+p@**rot**
+
+    Specify polygon zone shape point directions.
