@@ -7,11 +7,11 @@ Also see [Tutorial](https://youtu.be/HAM8_OP_Fyc?si=K_1HXkTBwF1rLYVB)
 
 # Compatibility
 
-This plug-in is reply on **my custom** [HoudiniEngineForUnreal](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal), so same [compatibility](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal#compatibility) as the Houdini Engine. (Examples only run with >= 5.4)
+This plug-in relies on **my custom** [HoudiniEngineForUnreal](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal), so same [compatibility](https://github.com/AdrianPanGithub/HoudiniEngineForUnreal#compatibility) as the Houdini Engine. (Examples only run with >= 5.4)
 
 # Installation
 01. In this GitHub [repository](https://github.com/AdrianPanGithub/HoudiniMassTranslator), click [Releases](https://github.com/AdrianPanGithub/HoudiniMassTranslator/releases) on the right side. 
-02. Download the Houdini Mass Transaltor zip file that matches your Unreal Engine Version.  
+02. Download the Houdini Mass Translator zip file that matches your Unreal Engine Version.
 03. Extract the **HoudiniMassTranslator** and **HoudiniEngine** to the **Plugins** of your Unreal Project Directory.
 
     e.g. `C:/Unreal Projects/MyGameProject/Plugins/HoudiniMassTranslator` and `C:/Unreal Projects/MyGameProject/Plugins/HoudiniEngine`
@@ -29,7 +29,9 @@ Also see what can be achieved by Only using your HDAs and these two unreal plugi
 
 Support both input and output of mass ai zone shapes
 
-There are some attributes for zone shape input and output
+Many properties on zone shape and zone shape points can be set by @**unreal_uproperty_***, such as i@unreal_uproperty_**PolygonRoutingType**, f@unreal_uproperty_**InnerTurnRadius**.
+
+Here are some specific attributes for zone shape input and output:
 
 i@**unreal_output_zone_shape**
 
@@ -45,7 +47,7 @@ d[]@**unreal_zone_lane_profile**
     Represent Lanes. Will find or create lane profiles based on this attribute when output. could be both on point and prim. Please click menu "Build/Clean Up Houdini Lane Profiles" at last.
 s@**unreal_zone_lane_profile_name**
 
-    Will find lane profiles based on this attribute, could be both on point and prim.
+    Will find lane profiles based on this attribute, could be both on point and prim at same time.
 p@**rot**
 
     Specify polygon zone shape point directions.

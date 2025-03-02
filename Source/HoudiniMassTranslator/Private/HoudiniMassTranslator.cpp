@@ -2,11 +2,12 @@
 
 #include "HoudiniMassTranslator.h"
 
+#include "Editor.h"
+#include "ToolMenus.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "ZoneGraphDelegates.h"
-
 #include "Settings/ProjectPackagingSettings.h"
+#include "ZoneGraphDelegates.h"
 
 #include "HoudiniEngine.h"
 #include "HoudiniInputZoneShape.h"

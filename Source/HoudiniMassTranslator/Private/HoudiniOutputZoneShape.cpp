@@ -115,7 +115,7 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateTags(const int32& NodeId, const
 
 	HAPI_AttributeInfo AttribInfo;
 	HAPI_SESSION_FAIL_RETURN(FHoudiniApi::GetAttributeInfo(FHoudiniEngine::Get().GetSession(),
-		NodeId, PartId, HAPI_ATTRIB_UNREAL_ZONE_ZHAPE_TAGS, InOutOwner, &AttribInfo));
+		NodeId, PartId, HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS, InOutOwner, &AttribInfo));
 
 	TArray<int32> Counts;
 	TArray<HAPI_StringHandle> SHs;
@@ -123,14 +123,14 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateTags(const int32& NodeId, const
 	{
 		SHs.SetNumUninitialized(AttribInfo.count);
 		HAPI_SESSION_FAIL_RETURN(FHoudiniApi::GetAttributeStringData(FHoudiniEngine::Get().GetSession(), NodeId, PartId,
-			HAPI_ATTRIB_UNREAL_ZONE_ZHAPE_TAGS, &AttribInfo, SHs.GetData(), 0, AttribInfo.count));
+			HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS, &AttribInfo, SHs.GetData(), 0, AttribInfo.count));
 	}
 	else if (AttribInfo.storage == HAPI_STORAGETYPE_STRING_ARRAY)
 	{
 		Counts.SetNumUninitialized(AttribInfo.count);
 		SHs.SetNumUninitialized(AttribInfo.totalArrayElements);
 		HAPI_SESSION_FAIL_RETURN(FHoudiniApi::GetAttributeStringArrayData(FHoudiniEngine::Get().GetSession(), NodeId, PartId,
-			HAPI_ATTRIB_UNREAL_ZONE_ZHAPE_TAGS, &AttribInfo, SHs.GetData(), AttribInfo.totalArrayElements, Counts.GetData(), 0, AttribInfo.count));
+			HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS, &AttribInfo, SHs.GetData(), AttribInfo.totalArrayElements, Counts.GetData(), 0, AttribInfo.count));
 	}
 	else
 		return true;
@@ -187,8 +187,6 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateLaneProfiles(const int32& NodeI
 	const HAPI_AttributeOwner& NameOwner, const HAPI_AttributeOwner& LanesOwner, TMap<uint32, int32>& InOutHashProfileIdxMap, TArray<int32>& OutLaneProfileIndices, bool& bZoneGraphSettingsModified)
 {
 	HAPI_AttributeInfo AttribInfo;
-
-	TConstArrayView<FZoneGraphTagInfo> Tags = ZoneGraphSettings->GetTagInfos();
 
 	TArray<FName> LaneProfileNames;
 	if (NameOwner != HAPI_ATTROWNER_INVALID)
@@ -444,7 +442,7 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 
 
 		// -------- Retrieve split values and partial output modes if exists --------
-		TArray<int32> SplitKeys;  // Maybe int or HAPI_StringHanlde
+		TArray<int32> SplitKeys;  // Maybe int or HAPI_StringHandle
 		HAPI_AttributeOwner SplitAttribOwner = HAPI_ATTROWNER_PRIM;  // Prefer on prim
 		TMap<HAPI_StringHandle, FString> SplitValueMap;
 		FHoudiniOutputUtils::HapiGetSplitValues(NodeId, PartId, AttribNames, PartInfo.attributeCounts,
@@ -536,7 +534,7 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 			}
 		}
 
-		FHoudiniOutputUtils::UpdateSplitableOutputHolders(ModifySplitValues, RemoveSplitValues, ZoneShapeOutputs,
+		FHoudiniOutputUtils::UpdateSplittableOutputHolders(ModifySplitValues, RemoveSplitValues, ZoneShapeOutputs,
 			[Node](const FHoudiniZoneShapeOutput& OldZSOutput) { return IsValid(OldZSOutput.Find(Node)); }, OldZoneShapeOutputs, NewZoneShapeOutputs);
 	}
 	else  // Collect valid old output holders for reuse
@@ -584,8 +582,8 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 			HAPI_SESSION_FAIL_RETURN(FHoudiniApi::GetAttributeInfo(FHoudiniEngine::Get().GetSession(), NodeId, PartId,
 				HAPI_ATTRIB_ROT, RotOwner, &AttribInfo));
 
-			if (AttribInfo.storage == HAPI_STORAGETYPE_FLOAT || AttribInfo.storage == HAPI_STORAGETYPE_FLOAT64 &&
-				AttribInfo.tupleSize == 3 || AttribInfo.tupleSize == 4)
+			if (((AttribInfo.storage == HAPI_STORAGETYPE_FLOAT) || (AttribInfo.storage == HAPI_STORAGETYPE_FLOAT64)) &&
+				((AttribInfo.tupleSize == 3) || (AttribInfo.tupleSize == 4)))
 			{
 				TArray<float> RotData;
 				RotData.SetNumUninitialized(AttribInfo.count * AttribInfo.tupleSize);
@@ -635,7 +633,7 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 		}
 
 		// Zone Shape Tags
-		HAPI_AttributeOwner ZoneGraphTagOwner = FHoudiniEngineUtils::QueryAttributeOwner(AttribNames, PartInfo.attributeCounts, HAPI_ATTRIB_UNREAL_ZONE_ZHAPE_TAGS);
+		HAPI_AttributeOwner ZoneGraphTagOwner = FHoudiniEngineUtils::QueryAttributeOwner(AttribNames, PartInfo.attributeCounts, HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS);
 		TArray<FZoneGraphTagMask> ZoneGraphTags;
 		HOUDINI_FAIL_RETURN(HapiGetOrCreateTags(NodeId, PartId, ZoneGraphSettings, ZoneGraphTagOwner, ZoneGraphTags, bZoneGraphSettingsModified));
 
