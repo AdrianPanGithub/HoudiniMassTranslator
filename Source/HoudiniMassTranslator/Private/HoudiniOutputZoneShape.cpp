@@ -204,10 +204,10 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateLaneProfiles(const int32& NodeI
 			TMap<HAPI_StringHandle, FName> SHNameMap;
 			{
 				TArray<HAPI_StringHandle> UniqueSHs = TSet<HAPI_StringHandle>(SHs).Array();
-				TArray<std::string> UniqueNames;
-				FHoudiniEngineUtils::HapiConvertStringHandles(UniqueSHs, UniqueNames);
+				TArray<FString> UniqueNames;
+				HOUDINI_FAIL_RETURN(FHoudiniEngineUtils::HapiConvertUniqueStringHandles(UniqueSHs, UniqueNames));
 				for (int32 UniqueIdx = 0; UniqueIdx < UniqueSHs.Num(); ++UniqueIdx)
-					SHNameMap.Add(UniqueSHs[UniqueIdx], UniqueNames[UniqueIdx].c_str());
+					SHNameMap.Add(UniqueSHs[UniqueIdx], *UniqueNames[UniqueIdx]);
 			}
 			LaneProfileNames.SetNum(AttribInfo.count);
 			for (int32 ElemIdx = 0; ElemIdx < AttribInfo.count; ++ElemIdx)
@@ -220,6 +220,67 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateLaneProfiles(const int32& NodeI
 		HAPI_SESSION_FAIL_RETURN(FHoudiniApi::GetAttributeInfo(FHoudiniEngine::Get().GetSession(),
 			NodeId, PartId, HAPI_ATTRIB_UNREAL_ZONE_LANE_PROFILE, LanesOwner, &AttribInfo));
 
+		auto ConvertJsonToLaneLambda = [&](const TSharedPtr<FJsonObject>& JsonLane, FZoneLaneDesc& Lane) -> void
+			{
+				float LaneWidth = 0.0;
+				if (JsonLane->TryGetNumberField(TEXT("Width"), LaneWidth))
+					Lane.Width = LaneWidth * POSITION_SCALE_TO_UNREAL_F;
+
+				int32 LaneDirInt = 0;
+				if (JsonLane->TryGetNumberField(TEXT("Direction"), LaneDirInt))
+					Lane.Direction = EZoneLaneDirection(LaneDirInt);
+				else
+				{
+					FString LaneDirStr;
+					if (JsonLane->TryGetStringField(TEXT("Direction"), LaneDirStr))
+					{
+						if (LaneDirStr == TEXT("None"))
+							Lane.Direction = EZoneLaneDirection::None;
+						else if (LaneDirStr == TEXT("Backward"))
+							Lane.Direction = EZoneLaneDirection::Backward;
+					}
+				}
+
+				const TArray<TSharedPtr<FJsonValue>>* JsonTagNames;
+				if (JsonLane->TryGetArrayField(TEXT("Tags"), JsonTagNames))
+				{
+					Lane.Tags = FZoneGraphTagMask(0);
+					for (const TSharedPtr<FJsonValue>& JsonTagName : *JsonTagNames)
+					{
+						FString TagName;
+						if (JsonTagName->TryGetString(TagName))
+							Lane.Tags.Add(FindOrCreateZoneGraphTag(ZoneGraphSettings, *TagName, bZoneGraphSettingsModified));
+					}
+					if (Lane.Tags == FZoneGraphTagMask(0))
+						Lane.Tags = FZoneGraphTagMask(1);
+				}
+				else
+				{
+					FString TagName;
+					if (JsonLane->TryGetStringField(TEXT("Tag"), TagName))
+						Lane.Tags = FindOrCreateZoneGraphTag(ZoneGraphSettings, *TagName, bZoneGraphSettingsModified);
+				}
+			};
+
+		auto FindOrAddLaneProfileLambda = [&](const int32& ElemIdx, const FName& LaneProfileName, const uint32& HashValue, const TArray<FZoneLaneDesc>& Lanes)
+			{
+				if (const int32* FoundProfileIdxPtr = InOutHashProfileIdxMap.Find(HashValue))
+					OutLaneProfileIndices[ElemIdx] = *FoundProfileIdxPtr;
+				else  // Create a new lane profile
+				{
+					FZoneLaneProfile NewLaneProfile;
+					NewLaneProfile.Name = LaneProfileName.IsNone() ?
+						FName(HOUDINI_LANE_PROFILE_PREFIX + GetLaneProfileString(Lanes), FMath::Abs(int32(HashValue))) : LaneProfileName;
+					NewLaneProfile.Lanes = Lanes;
+
+					const int32 NewProfileIdx = ((TArray<FZoneLaneProfile>*) & ZoneGraphSettings->GetLaneProfiles())->Add(NewLaneProfile);
+					bZoneGraphSettingsModified = true;
+
+					InOutHashProfileIdxMap.Add(HashValue, NewProfileIdx);
+					OutLaneProfileIndices[ElemIdx] = NewProfileIdx;
+				}
+			};
+
 		if (AttribInfo.storage == HAPI_STORAGETYPE_DICTIONARY_ARRAY)  // Means we should find or create a lane profile
 		{
 			TArray<int32> Counts;
@@ -231,7 +292,7 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateLaneProfiles(const int32& NodeI
 
 			// HAPI BUG: GetAttributeDictionaryArrayData will get all sh unique, we could only find unique strs in unreal
 			TArray<FString> LaneDictStrs;
-			HOUDINI_FAIL_RETURN(FHoudiniEngineUtils::HapiConvertStringHandles(SHs, LaneDictStrs));
+			HOUDINI_FAIL_RETURN(FHoudiniEngineUtils::HapiConvertUniqueStringHandles(SHs, LaneDictStrs));
 			TMap<FString, FZoneLaneDesc> SHLaneMap;
 			for (int32 ArrayIdx = 0; ArrayIdx < SHs.Num(); ++ArrayIdx)
 			{
@@ -242,46 +303,7 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateLaneProfiles(const int32& NodeI
 				TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(LaneDictStrs[ArrayIdx]);
 				TSharedPtr<FJsonObject> JsonLane;
 				if (FJsonSerializer::Deserialize(JsonReader, JsonLane))
-				{
-					float LaneOffset = 0.0;
-					if (JsonLane->TryGetNumberField(TEXT("Width"), LaneOffset))
-						Lane.Width = LaneOffset * POSITION_SCALE_TO_UNREAL_F;
-
-					int32 LaneDirInt = 0;
-					if (JsonLane->TryGetNumberField(TEXT("Direction"), LaneDirInt))
-						Lane.Direction = EZoneLaneDirection(LaneDirInt);
-					else
-					{
-						FString LaneDirStr;
-						if (JsonLane->TryGetStringField(TEXT("Direction"), LaneDirStr))
-						{
-							if (LaneDirStr == TEXT("None"))
-								Lane.Direction = EZoneLaneDirection::None;
-							else if (LaneDirStr == TEXT("Backward"))
-								Lane.Direction = EZoneLaneDirection::Backward;
-						}
-					}
-
-					const TArray<TSharedPtr<FJsonValue>>* JsonTagNames;
-					if (JsonLane->TryGetArrayField(TEXT("Tags"), JsonTagNames))
-					{
-						Lane.Tags = FZoneGraphTagMask(0);
-						for (const TSharedPtr<FJsonValue>& JsonTagName : *JsonTagNames)
-						{
-							FString TagName;
-							if (JsonTagName->TryGetString(TagName))
-								Lane.Tags.Add(FindOrCreateZoneGraphTag(ZoneGraphSettings, *TagName, bZoneGraphSettingsModified));
-						}
-						if (Lane.Tags == FZoneGraphTagMask(0))
-							Lane.Tags = FZoneGraphTagMask(1);
-					}
-					else
-					{
-						FString TagName;
-						if (JsonLane->TryGetStringField(TEXT("Tag"), TagName))
-							Lane.Tags = FindOrCreateZoneGraphTag(ZoneGraphSettings, *TagName, bZoneGraphSettingsModified);
-					}
-				}
+					ConvertJsonToLaneLambda(JsonLane, Lane);
 
 				SHLaneMap.Add(LaneDictStrs[ArrayIdx], Lane);
 			}
@@ -302,24 +324,62 @@ bool HoudiniZoneShapeOutputUtils::HapiGetOrCreateLaneProfiles(const int32& NodeI
 				TArray<FZoneLaneDesc> Lanes;
 				for (int32 ArrayIdx = AccumulatedCount; ArrayIdx < AccumulatedCount + Count; ++ArrayIdx)
 					Lanes.Add(SHLaneMap[LaneDictStrs[ArrayIdx]]);
-
-				const uint32 HashValue = GetLaneProfileHash(Lanes);
-				if (const int32* FoundProfileIdxPtr = InOutHashProfileIdxMap.Find(HashValue))
-					OutLaneProfileIndices[ElemIdx] = *FoundProfileIdxPtr;
-				else  // Create a new lane profile
-				{
-					FZoneLaneProfile NewLaneProfile;
-					NewLaneProfile.Name = LaneProfileName.IsNone() ?
-						FName(HOUDINI_LANE_PROFILE_PREFIX + GetLaneProfileString(Lanes), FMath::Abs(int32(HashValue))) : LaneProfileName;
-					NewLaneProfile.Lanes = Lanes;
-
-					const int32 NewProfileIdx = ((TArray<FZoneLaneProfile>*) & ZoneGraphSettings->GetLaneProfiles())->Add(NewLaneProfile);
-					bZoneGraphSettingsModified = true;
-
-					InOutHashProfileIdxMap.Add(HashValue, NewProfileIdx);
-					OutLaneProfileIndices[ElemIdx] = NewProfileIdx;
-				}
 				AccumulatedCount += Count;
+
+				FindOrAddLaneProfileLambda(ElemIdx, LaneProfileName, GetLaneProfileHash(Lanes), Lanes);
+			}
+		}
+		else if (AttribInfo.storage == HAPI_STORAGETYPE_STRING)  // Warning: Temporarily, will remove this method if HAPI fix the bug
+		{
+			TArray<HAPI_StringHandle> SHs;
+			SHs.SetNumUninitialized(AttribInfo.count);
+			HAPI_SESSION_FAIL_RETURN(FHoudiniApi::GetAttributeStringData(FHoudiniEngine::Get().GetSession(), NodeId, PartId,
+				HAPI_ATTRIB_UNREAL_ZONE_LANE_PROFILE, &AttribInfo, SHs.GetData(), 0, AttribInfo.count));
+
+			TMap<HAPI_StringHandle, TPair<uint32, TArray<FZoneLaneDesc>>> SHLanesMap;
+			{
+				TArray<HAPI_StringHandle> UniqueSHs = TSet<HAPI_StringHandle>(SHs).Array();
+				TArray<FString> UniqueStrs;
+				HOUDINI_FAIL_RETURN(FHoudiniEngineUtils::HapiConvertUniqueStringHandles(UniqueSHs, UniqueStrs));
+				for (int32 UniqueIdx = 0; UniqueIdx < UniqueSHs.Num(); ++UniqueIdx)
+				{
+					if (UniqueStrs[UniqueIdx].IsEmpty())
+						continue;
+
+					TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(UniqueStrs[UniqueIdx]);
+					TSharedPtr<FJsonObject> JsonLanes;
+					if (FJsonSerializer::Deserialize(JsonReader, JsonLanes))
+					{
+						const TArray<TSharedPtr<FJsonValue>>* JsonLanesPtr = nullptr;
+						if (JsonLanes->TryGetArrayField(TEXT("Lanes"), JsonLanesPtr))
+						{
+							TArray<FZoneLaneDesc> Lanes;
+							for (const TSharedPtr<FJsonValue>& JsonLane : *JsonLanesPtr)
+							{
+								const TSharedPtr<FJsonObject>* JsonLanePtr = nullptr;
+								FZoneLaneDesc Lane = FZoneLaneDesc();
+								if (JsonLane->TryGetObject(JsonLanePtr))
+									ConvertJsonToLaneLambda(*JsonLanePtr, Lane);
+								Lanes.Add(Lane);
+							}
+							SHLanesMap.Add(UniqueSHs[UniqueIdx], TPair<uint32, TArray<FZoneLaneDesc>>(GetLaneProfileHash(Lanes), Lanes));
+						}
+					}
+				}
+			}
+			OutLaneProfileIndices.SetNumUninitialized(AttribInfo.count);
+			for (int32 ElemIdx = 0; ElemIdx < AttribInfo.count; ++ElemIdx)
+			{
+				const FName LaneProfileName = LaneProfileNames.IsEmpty() ? NAME_None : LaneProfileNames[NameOwner == HAPI_ATTROWNER_DETAIL ? 0 : ElemIdx];
+				const TPair<uint32, TArray<FZoneLaneDesc>>* HashLanesPtr = SHLanesMap.Find(SHs[ElemIdx]);
+				if (!HashLanesPtr)  // Fallback to try to find lane profile by name
+				{
+					OutLaneProfileIndices[ElemIdx] = LaneProfileNames.IsEmpty() ? -1 : ZoneGraphSettings->GetLaneProfiles().IndexOfByPredicate(
+						[LaneProfileName](const FZoneLaneProfile& LaneProfile) { return LaneProfile.Name == LaneProfileName; });
+					continue;
+				}
+
+				FindOrAddLaneProfileLambda(ElemIdx, LaneProfileName, HashLanesPtr->Key, HashLanesPtr->Value);
 			}
 		}
 	}
@@ -633,7 +693,8 @@ bool UHoudiniOutputZoneShape::HapiUpdate(const HAPI_GeoInfo& GeoInfo, const TArr
 		}
 
 		// Zone Shape Tags
-		HAPI_AttributeOwner ZoneGraphTagOwner = FHoudiniEngineUtils::QueryAttributeOwner(AttribNames, PartInfo.attributeCounts, HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS);
+		HAPI_AttributeOwner ZoneGraphTagOwner = FHoudiniEngineUtils::IsAttributeExists(AttribNames, PartInfo.attributeCounts, HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS, HAPI_ATTROWNER_PRIM) ?
+			HAPI_ATTROWNER_PRIM : FHoudiniEngineUtils::QueryAttributeOwner(AttribNames, PartInfo.attributeCounts, HAPI_ATTRIB_UNREAL_ZONE_SHAPE_TAGS);
 		TArray<FZoneGraphTagMask> ZoneGraphTags;
 		HOUDINI_FAIL_RETURN(HapiGetOrCreateTags(NodeId, PartId, ZoneGraphSettings, ZoneGraphTagOwner, ZoneGraphTags, bZoneGraphSettingsModified));
 
