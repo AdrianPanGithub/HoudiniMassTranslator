@@ -33,25 +33,30 @@ uint32 GetTypeHash(const FZoneLaneDesc& Lane)
 	return GetTypeHash(TArray<uint8>((uint8*)&Lane, sizeof(FZoneLaneDesc)));
 }
 
-static const char* ConvertLaneToJsonStr(const FZoneLaneDesc& Lane, const UZoneGraphSettings* ZoneGraphSettings, TMap<FZoneLaneDesc, std::string>& InOutLaneDictStrMap)
+static const char* ConvertLaneToJsonStr(const FZoneLaneDesc& Lane, const UZoneGraphSettings* ZoneGraphSettings, TMap<FZoneLaneDesc, TSharedPtr<std::string>>& InOutLaneDictStrMap)
 {
-	if (const std::string* FoundStrPtr = InOutLaneDictStrMap.Find(Lane))
-		return FoundStrPtr->c_str();
-	else {
-		FString TagsStr = TEXT("[");
-		for (const FZoneGraphTagInfo& Tag : ZoneGraphSettings->GetTagInfos())
-		{
-			if (Lane.Tags.Contains(Tag.Tag))
-				TagsStr += TEXT("\"") + Tag.Name.ToString() + TEXT("\",");
-		}
-		TagsStr.RemoveFromEnd(TEXT(","));
-		TagsStr += TEXT("]");
-
-		return InOutLaneDictStrMap.Add(Lane, TCHAR_TO_UTF8(*FString::Printf(TEXT("{\"Width\":%f,\"Direction\":%d,\"Tags\":%s}"),
-			Lane.Width * POSITION_SCALE_TO_HOUDINI, int32(Lane.Direction), *TagsStr))).c_str();
+	if (const TSharedPtr<std::string>* FoundStrPtr = InOutLaneDictStrMap.Find(Lane))
+		return (*FoundStrPtr)->c_str();
+	
+	FString TagsStr = TEXT("[");
+	for (const FZoneGraphTagInfo& Tag : ZoneGraphSettings->GetTagInfos())
+	{
+		if (Lane.Tags.Contains(Tag.Tag))
+			TagsStr += TEXT("\"") + Tag.Name.ToString() + TEXT("\",");
 	}
+	TagsStr.RemoveFromEnd(TEXT(","));
+	TagsStr += TEXT("]");
 
-	return "";
+	return InOutLaneDictStrMap.Add(Lane, MakeShared<std::string>(TCHAR_TO_UTF8(*FString::Printf(TEXT("{\"Width\":%f,\"Direction\":%d,\"Tags\":%s}"),
+		Lane.Width * POSITION_SCALE_TO_HOUDINI, int32(Lane.Direction), *TagsStr))))->c_str();
+}
+
+static const char* ConvertNameToJsonStr(const FName& Name, TMap<FName, TSharedPtr<std::string>>& InOutNameStrMap)
+{
+	if (const TSharedPtr<std::string>* FoundStrPtr = InOutNameStrMap.Find(Name))
+		return (*FoundStrPtr)->c_str();
+	
+	return InOutNameStrMap.Add(Name, MakeShared<std::string>(Name.IsNone() ? "" : TCHAR_TO_UTF8(*Name.ToString())))->c_str();
 }
 
 bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, const bool& bIsSingleComponent,  // Is there only one single valid component in the whole blueprint/actor
@@ -87,13 +92,13 @@ bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, co
 	TArray<float> Rotations;
 
 	// s@unreal_zone_lane_profile_name
-	TMap<FName, std::string> LaneProfileNameStrMap;
+	TMap<FName, TSharedPtr<std::string>> LaneProfileNameStrMap;
 	TArray<const char*> PointLaneProfileNames;
 	TArray<const char*> SplineLaneProfileNames;
 	SplineLaneProfileNames.Reserve(PartInfo.faceCount);
 
 	// d[]@unreal_zone_lane_profile
-	TMap<FZoneLaneDesc, std::string> LaneDictStrMap;
+	TMap<FZoneLaneDesc, TSharedPtr<std::string>> LaneDictStrMap;
 	TArray<const char*> PointLanes;
 	TArray<int32> PointLaneCounts;
 	TArray<const char*> SplineLanes;
@@ -109,7 +114,7 @@ bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, co
 		ZoneShapeTypes.Add((int32)ZSC->GetShapeType());
 		VertexCounts.Add(ZSC->GetPoints().Num());
 
-		const int32 NumPoints = ZSC->GetPoints().Num();
+		const int32 NumPoints = ZSC->GetNumPoints();
 		if (ZSC->GetShapeType() == FZoneShapeType::Spline)
 		{
 			bHasSpline = true;
@@ -117,11 +122,7 @@ bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, co
 			// Spline LaneProfile
 			FZoneLaneProfile LaneProfile;
 			ZSC->GetSplineLaneProfile(LaneProfile);
-			if (const std::string* FoundStrPtr = LaneProfileNameStrMap.Find(LaneProfile.Name))
-				SplineLaneProfileNames.Add(FoundStrPtr->c_str());
-			else
-				SplineLaneProfileNames.Add(
-					LaneProfileNameStrMap.Add(LaneProfile.Name, LaneProfile.Name.IsNone() ? "" : TCHAR_TO_UTF8(*LaneProfile.Name.ToString())).c_str());
+			SplineLaneProfileNames.Add(ConvertNameToJsonStr(LaneProfile.Name, LaneProfileNameStrMap));
 
 			SplineLaneCounts.Add(LaneProfile.Lanes.Num());
 			for (const FZoneLaneDesc& Lane : LaneProfile.Lanes)
@@ -139,30 +140,15 @@ bool FHoudiniZoneShapeComponentInputBuilder::HapiUpload(UHoudiniInput* Input, co
 			bHasPolygon = true;
 
 			// Point LaneProfiles
-			FZoneLaneProfile SplineLaneProfile;
-			SplineLaneProfile.ID = FGuid();
 			TArray<FZoneLaneProfile> LaneProfiles;
 			ZSC->GetPolygonLaneProfiles(LaneProfiles);
-			for (const FZoneShapePoint& Point : ZSC->GetPoints())
+			for (const FZoneLaneProfile& LaneProfile : LaneProfiles)
 			{
-				const FZoneLaneProfile* LaneProfilePtr = nullptr;
-				if (Point.LaneProfile == FZoneShapePoint::InheritLaneProfile)
-				{
-					if (SplineLaneProfile.ID == FGuid())
-						ZSC->GetSplineLaneProfile(SplineLaneProfile);
-					LaneProfilePtr = &SplineLaneProfile;
-				}
-				else if (LaneProfiles.IsValidIndex(Point.LaneProfile))
-					LaneProfilePtr = &LaneProfiles[Point.LaneProfile];
+				PointLaneProfileNames.Add(ConvertNameToJsonStr(LaneProfile.Name, LaneProfileNameStrMap));
 
-				PointLaneProfileNames.Add((LaneProfilePtr && !LaneProfilePtr->Name.IsNone()) ? TCHAR_TO_UTF8(*LaneProfilePtr->Name.ToString()) : "");
-
-				PointLaneCounts.Add(LaneProfilePtr ? LaneProfilePtr->Lanes.Num() : 0);
-				if (LaneProfilePtr)
-				{
-					for (const FZoneLaneDesc& Lane : LaneProfilePtr->Lanes)
-						PointLanes.Add(ConvertLaneToJsonStr(Lane, ZoneGraphSettings, LaneDictStrMap));
-				}
+				PointLaneCounts.Add(LaneProfile.Lanes.Num());
+				for (const FZoneLaneDesc& Lane : LaneProfile.Lanes)
+					PointLanes.Add(ConvertLaneToJsonStr(Lane, ZoneGraphSettings, LaneDictStrMap));
 			}
 
 			// Spline LaneProfile
